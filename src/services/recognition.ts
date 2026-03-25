@@ -49,7 +49,7 @@ export function cosineSimilarity(a: number[], b: number[]): number {
  * Default recognition threshold (Euclidean distance).
  * Lower = stricter matching.
  */
-export const DEFAULT_THRESHOLD = 0.6;
+export const DEFAULT_THRESHOLD = 0.5;
 
 /**
  * Find the best matching student from the dataset for a given face embedding.
