@@ -70,10 +70,18 @@ export async function getStudents(): Promise<Student[]> {
         ""
       ).trim();
 
+      const photo_url = (
+        row["photo_url"] ||
+        row["photo"] ||
+        row["image_url"] ||
+        ""
+      ).trim();
+
       students.push({
         name,
         matric,
         embedding: embedding!,
+        photo_url: photo_url || undefined,
       });
     }
 

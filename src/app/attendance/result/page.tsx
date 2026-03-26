@@ -13,6 +13,7 @@ function ResultContent() {
   const confidence = parseFloat(searchParams.get("confidence") || "0");
   const course = searchParams.get("course") || "N/A";
   const venue = searchParams.get("venue") || "N/A";
+  const photoUrl = searchParams.get("photo");
   const time = new Date().toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -59,9 +60,13 @@ function ResultContent() {
             <div className="bg-surface-container-lowest rounded-3xl p-6 border-outline-variant/10 flex flex-col md:flex-row gap-8 items-center md:items-stretch overflow-hidden">
               {/* Passport Frame */}
               <div className="relative w-64 h-80 flex-shrink-0 bg-surface-container rounded-2xl overflow-hidden border-4 border-primary-fixed/40 flex items-center justify-center">
-                <span className="material-symbols-outlined text-9xl text-outline/30">
-                  person
-                </span>
+                {photoUrl ? (
+                  <img src={photoUrl} alt={`${name}'s passport`} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="material-symbols-outlined text-9xl text-outline/30">
+                    person
+                  </span>
+                )}
                 {/* Viewfinder corners */}
                 <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-primary-fixed"></div>
                 <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-primary-fixed"></div>

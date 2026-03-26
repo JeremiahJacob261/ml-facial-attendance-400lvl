@@ -163,7 +163,7 @@ export default function AttendancePage() {
               // Navigate to result page after a brief delay
               setTimeout(() => {
                 router.push(
-                  `/attendance/result?name=${encodeURIComponent(result.student!.name)}&matric=${encodeURIComponent(result.student!.matric)}&confidence=${result.confidence.toFixed(1)}&course=${encodeURIComponent(course)}&venue=${encodeURIComponent(venue)}`
+                  `/attendance/result?name=${encodeURIComponent(result.student!.name)}&matric=${encodeURIComponent(result.student!.matric)}&confidence=${result.confidence.toFixed(1)}&course=${encodeURIComponent(course)}&venue=${encodeURIComponent(venue)}&photo=${encodeURIComponent(result.student!.photo_url || "")}`
                 );
               }, 1500);
             } else {
@@ -247,7 +247,7 @@ export default function AttendancePage() {
 
         setTimeout(() => {
           router.push(
-            `/attendance/result?name=${encodeURIComponent(result.student!.name)}&matric=${encodeURIComponent(result.student!.matric)}&confidence=${result.confidence.toFixed(1)}&course=${encodeURIComponent(course)}&venue=${encodeURIComponent(venue)}`
+            `/attendance/result?name=${encodeURIComponent(result.student!.name)}&matric=${encodeURIComponent(result.student!.matric)}&confidence=${result.confidence.toFixed(1)}&course=${encodeURIComponent(course)}&venue=${encodeURIComponent(venue)}&photo=${encodeURIComponent(result.student!.photo_url || "")}`
           );
         }, 1500);
       } else {

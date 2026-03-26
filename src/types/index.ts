@@ -2,6 +2,7 @@ export interface Student {
   name: string;
   matric: string;
   embedding: number[];
+  photo_url?: string;
 }
 
 export interface AttendanceRecord {
