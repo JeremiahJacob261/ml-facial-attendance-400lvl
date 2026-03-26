@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import TopHeader from "@/components/TopHeader";
 import BottomNav from "@/components/BottomNav";
 import Toast from "@/components/Toast";
@@ -13,6 +13,18 @@ export default function SettingsPage() {
     useAppState();
 
   const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
+
+  useEffect(() => {
+    const savedThreshold = localStorage.getItem("recognition_threshold");
+    if (savedThreshold) {
+      setThreshold(parseFloat(savedThreshold));
+    }
+  }, []);
+
+  const handleThresholdChange = (val: number) => {
+    setThreshold(val);
+    localStorage.setItem("recognition_threshold", val.toString());
+  };
 
   const handleReloadCSV = async () => {
     clearStudentCache();
@@ -97,7 +109,7 @@ export default function SettingsPage() {
                 max="0.9"
                 step="0.05"
                 value={threshold}
-                onChange={(e) => setThreshold(parseFloat(e.target.value))}
+                onChange={(e) => handleThresholdChange(parseFloat(e.target.value))}
                 className="w-full accent-primary"
               />
               <div className="flex justify-between text-[10px] text-on-surface-variant mt-1">

@@ -115,7 +115,14 @@ export function useAppState(): AppState {
 
   const recognizeAndRecord = useCallback(
     (embedding: Float32Array, course: string, venue: string): RecognitionResult => {
-      const result = findBestMatch(embedding, students, DEFAULT_THRESHOLD);
+      let currentThreshold = DEFAULT_THRESHOLD;
+      if (typeof window !== 'undefined') {
+        const savedThreshold = localStorage.getItem("recognition_threshold");
+        if (savedThreshold) {
+          currentThreshold = parseFloat(savedThreshold);
+        }
+      }
+      const result = findBestMatch(embedding, students, currentThreshold);
       setLastResult(result);
 
       if (result.matched && result.student) {
