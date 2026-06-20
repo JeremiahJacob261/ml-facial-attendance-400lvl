@@ -1,7 +1,7 @@
 import type { Student } from "@/types";
 import { parseCSV, parseEmbedding } from "./parser";
 import { validateStudent } from "./validator";
-import { getStoredStudents, seedStudents } from "@/services/localData";
+import { loadStudents, seedStudents } from "@/services/localData";
 
 // Module-level cache for parsed students
 let cachedStudents: Student[] | null = null;
@@ -16,10 +16,10 @@ export async function getStudents(): Promise<Student[]> {
   if (loadError) throw new Error(loadError);
 
   try {
-    const storedStudents = getStoredStudents();
-    if (storedStudents) {
-      cachedStudents = storedStudents;
-      return storedStudents;
+    const primaryStudents = await loadStudents();
+    if (primaryStudents.length > 0) {
+      cachedStudents = primaryStudents;
+      return primaryStudents;
     }
 
     const response = await fetch("/data/students.csv");
@@ -93,7 +93,7 @@ export async function getStudents(): Promise<Student[]> {
       });
     }
 
-    cachedStudents = seedStudents(students);
+    cachedStudents = await seedStudents(students);
     console.log(`Loaded ${students.length} students from CSV`);
     return cachedStudents;
   } catch (err) {

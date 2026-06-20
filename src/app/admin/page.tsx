@@ -5,18 +5,24 @@ import TopHeader from "@/components/TopHeader";
 import BottomNav from "@/components/BottomNav";
 import Toast from "@/components/Toast";
 import { useAppState } from "@/hooks/useAppState";
-import { clearStudentCache, getStudents } from "@/lib/csv/loader";
+import { clearStudentCache } from "@/lib/csv/loader";
 import { parseEmbedding } from "@/lib/csv/parser";
 import {
   createEntityId,
-  getCourses,
-  getHalls,
+  deleteCourse,
+  deleteHall,
+  deleteStudent,
+  flushPendingOperations,
+  getPendingCount,
+  loadCourses,
+  loadHalls,
+  loadStudents,
   normalizeText,
-  saveCourses,
-  saveHalls,
-  saveStudents,
+  upsertCourse,
+  upsertHall,
+  upsertStudent,
 } from "@/services/localData";
-import type { Course, Hall, Student } from "@/types";
+import type { Course, Hall, Student, SyncStatus } from "@/types";
 
 type AdminTab = "students" | "courses" | "halls" | "analytics";
 
@@ -62,6 +68,22 @@ function compactStudent(student: Student): Student {
   };
 }
 
+function SyncBadge({ status }: { status?: SyncStatus }) {
+  const resolved = status || "synced";
+  const classes =
+    resolved === "synced"
+      ? "bg-primary-container text-on-primary-container"
+      : resolved === "failed"
+        ? "bg-error-container text-on-error-container"
+        : "bg-secondary-container text-on-secondary-container";
+
+  return (
+    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${classes}`}>
+      {resolved}
+    </span>
+  );
+}
+
 export default function AdminPage() {
   const {
     allRecords,
@@ -81,14 +103,17 @@ export default function AdminPage() {
   const [studentForm, setStudentForm] = useState<StudentFormState>(emptyStudentForm);
   const [courseForm, setCourseForm] = useState<Course>(emptyCourseForm);
   const [hallForm, setHallForm] = useState<Hall>(emptyHallForm);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     const loadAdminData = async () => {
-      const loadedStudents = await getStudents();
+      await flushPendingOperations();
+      const loadedStudents = await loadStudents();
       setStudents(loadedStudents);
-      setCourses(getCourses());
-      setHalls(getHalls());
-      refreshRecords();
+      setCourses(await loadCourses());
+      setHalls(await loadHalls());
+      setPendingCount(getPendingCount());
+      await refreshRecords();
     };
 
     loadAdminData().catch(() => {
@@ -117,14 +142,27 @@ export default function AdminPage() {
   const attendanceRate =
     students.length > 0 ? Math.round((sessionRecords.length / students.length) * 100) : 0;
 
-  const persistStudents = (nextStudents: Student[]) => {
+  const syncMessage = (entity: string, status: SyncStatus) =>
+    status === "synced"
+      ? `${entity} synced`
+      : status === "failed"
+        ? `${entity} saved locally, sync failed`
+        : `${entity} saved locally, sync pending`;
+
+  const reloadCatalog = async () => {
+    setStudents(await loadStudents());
+    setCourses(await loadCourses());
+    setHalls(await loadHalls());
+    setPendingCount(getPendingCount());
+  };
+
+  const persistStudents = async (nextStudents: Student[]) => {
     const normalizedStudents = nextStudents.map(compactStudent);
-    saveStudents(normalizedStudents);
     clearStudentCache();
     setStudents(normalizedStudents);
   };
 
-  const handleStudentSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleStudentSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const name = normalizeText(studentForm.name);
@@ -164,9 +202,15 @@ export default function AdminPage() {
       ? students.map((student) => (student.id === studentForm.id ? nextStudent : student))
       : [nextStudent, ...students];
 
-    persistStudents(nextStudents);
+    await persistStudents(nextStudents);
+    const status = await upsertStudent(nextStudent);
+    clearStudentCache();
+    await reloadCatalog();
     setStudentForm(emptyStudentForm);
-    showToast(studentForm.id ? "Student updated" : "Student added", "success");
+    showToast(
+      syncMessage(studentForm.id ? "Student updated" : "Student added", status),
+      status === "synced" ? "success" : "info"
+    );
   };
 
   const handleStudentEdit = (student: Student) => {
@@ -180,13 +224,16 @@ export default function AdminPage() {
     setActiveTab("students");
   };
 
-  const handleStudentDelete = (student: Student) => {
+  const handleStudentDelete = async (student: Student) => {
     if (!window.confirm(`Delete ${student.name}?`)) return;
-    persistStudents(students.filter((item) => item.id !== student.id));
-    showToast("Student deleted", "info");
+    await persistStudents(students.filter((item) => item.id !== student.id));
+    const status = await deleteStudent(student.id || student.matric);
+    clearStudentCache();
+    await reloadCatalog();
+    showToast(syncMessage("Student deleted", status), "info");
   };
 
-  const handleCourseSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleCourseSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const code = normalizeText(courseForm.code);
     const title = normalizeText(courseForm.title);
@@ -216,13 +263,17 @@ export default function AdminPage() {
       ? courses.map((course) => (course.id === courseForm.id ? nextCourse : course))
       : [nextCourse, ...courses];
 
-    saveCourses(nextCourses);
     setCourses(nextCourses);
+    const status = await upsertCourse(nextCourse);
+    await reloadCatalog();
     setCourseForm(emptyCourseForm);
-    showToast(courseForm.id ? "Course updated" : "Course added", "success");
+    showToast(
+      syncMessage(courseForm.id ? "Course updated" : "Course added", status),
+      status === "synced" ? "success" : "info"
+    );
   };
 
-  const handleHallSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleHallSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const name = normalizeText(hallForm.name);
     const location = hallForm.location ? normalizeText(hallForm.location) : "";
@@ -252,10 +303,14 @@ export default function AdminPage() {
       ? halls.map((hall) => (hall.id === hallForm.id ? nextHall : hall))
       : [nextHall, ...halls];
 
-    saveHalls(nextHalls);
     setHalls(nextHalls);
+    const status = await upsertHall(nextHall);
+    await reloadCatalog();
     setHallForm(emptyHallForm);
-    showToast(hallForm.id ? "Hall updated" : "Hall added", "success");
+    showToast(
+      syncMessage(hallForm.id ? "Hall updated" : "Hall added", status),
+      status === "synced" ? "success" : "info"
+    );
   };
 
   return (
@@ -267,7 +322,8 @@ export default function AdminPage() {
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Admin</h2>
             <p className="text-sm text-on-surface-variant">
-              Manage records stored locally on this device.
+              Supabase primary storage with local fallback.
+              {pendingCount > 0 ? ` ${pendingCount} pending sync.` : " All changes synced."}
             </p>
           </div>
           <div className="grid grid-cols-4 bg-surface-container-lowest rounded-2xl p-1 shadow-[0_4px_24px_rgba(26,28,28,0.04)]">
@@ -377,6 +433,9 @@ export default function AdminPage() {
                           ? `${student.embedding.length}D biometric profile`
                           : "No biometric profile"}
                       </p>
+                      <div className="mt-2">
+                        <SyncBadge status={student.syncStatus} />
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -454,6 +513,9 @@ export default function AdminPage() {
                     <div>
                       <p className="font-bold">{course.title}</p>
                       <p className="text-sm text-on-surface-variant">{course.code}</p>
+                      <div className="mt-2">
+                        <SyncBadge status={course.syncStatus} />
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -463,10 +525,11 @@ export default function AdminPage() {
                         Edit
                       </button>
                       <button
-                        onClick={() => {
-                          saveCourses(courses.filter((item) => item.id !== course.id));
+                        onClick={async () => {
                           setCourses(courses.filter((item) => item.id !== course.id));
-                          showToast("Course deleted", "info");
+                          const status = await deleteCourse(course.id);
+                          await reloadCatalog();
+                          showToast(syncMessage("Course deleted", status), "info");
                         }}
                         className="px-4 py-2 rounded-xl bg-error-container text-on-error-container font-bold text-sm"
                       >
@@ -552,6 +615,9 @@ export default function AdminPage() {
                           .filter(Boolean)
                           .join(" • ") || "No extra details"}
                       </p>
+                      <div className="mt-2">
+                        <SyncBadge status={hall.syncStatus} />
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -561,10 +627,11 @@ export default function AdminPage() {
                         Edit
                       </button>
                       <button
-                        onClick={() => {
-                          saveHalls(halls.filter((item) => item.id !== hall.id));
+                        onClick={async () => {
                           setHalls(halls.filter((item) => item.id !== hall.id));
-                          showToast("Hall deleted", "info");
+                          const status = await deleteHall(hall.id);
+                          await reloadCatalog();
+                          showToast(syncMessage("Hall deleted", status), "info");
                         }}
                         className="px-4 py-2 rounded-xl bg-error-container text-on-error-container font-bold text-sm"
                       >

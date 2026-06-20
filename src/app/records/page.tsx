@@ -19,7 +19,7 @@ export default function RecordsPage() {
   const recordsPerPage = 10;
 
   useEffect(() => {
-    refreshRecords();
+    void refreshRecords();
   }, [refreshRecords]);
 
   // Get unique courses from records

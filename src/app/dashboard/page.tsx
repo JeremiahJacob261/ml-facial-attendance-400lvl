@@ -6,7 +6,7 @@ import TopHeader from "@/components/TopHeader";
 import BottomNav from "@/components/BottomNav";
 import Toast from "@/components/Toast";
 import { useAppState } from "@/hooks/useAppState";
-import { getCourses, getHalls } from "@/services/localData";
+import { loadCourses, loadHalls } from "@/services/localData";
 import type { Course, Hall } from "@/types";
 
 export default function DashboardPage() {
@@ -31,13 +31,18 @@ export default function DashboardPage() {
   const [sessionLabel, setSessionLabel] = useState("");
 
   useEffect(() => {
-    refreshRecords();
-    const availableCourses = getCourses();
-    const availableHalls = getHalls();
-    setCourses(availableCourses);
-    setHalls(availableHalls);
-    setSelectedCourse((current) => current || availableCourses[0]?.title || "");
-    setSelectedVenue((current) => current || availableHalls[0]?.name || "");
+    void refreshRecords();
+    const loadCatalog = async () => {
+      const [availableCourses, availableHalls] = await Promise.all([
+        loadCourses(),
+        loadHalls(),
+      ]);
+      setCourses(availableCourses);
+      setHalls(availableHalls);
+      setSelectedCourse((current) => current || availableCourses[0]?.title || "");
+      setSelectedVenue((current) => current || availableHalls[0]?.name || "");
+    };
+    void loadCatalog();
     // Client-only date formatting to avoid hydration mismatch
     const now = new Date();
     setDateStr(now.toLocaleDateString("en-US", { month: "short", day: "numeric" }));

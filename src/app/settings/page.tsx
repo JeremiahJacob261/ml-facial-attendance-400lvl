@@ -26,10 +26,10 @@ export default function SettingsPage() {
     localStorage.setItem("recognition_threshold", val.toString());
   };
 
-  const handleReloadCSV = async () => {
+  const handleReloadData = async () => {
     clearStudentCache();
     await loadData();
-    showToast("Student data reloaded from CSV", "success");
+    showToast("Student data reloaded", "success");
   };
 
   return (
@@ -57,9 +57,9 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-surface-container-low rounded-2xl">
               <div>
-                <p className="font-medium text-on-surface">Student CSV</p>
+                <p className="font-medium text-on-surface">Student Data</p>
                 <p className="text-sm text-on-surface-variant">
-                  /data/students.csv
+                  Supabase primary, local fallback, CSV seed
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -72,13 +72,13 @@ export default function SettingsPage() {
               </div>
             </div>
             <button
-              onClick={handleReloadCSV}
+              onClick={handleReloadData}
               className="w-full py-3 px-6 rounded-2xl bg-surface-container-low text-secondary font-semibold hover:bg-surface-container transition-colors active:scale-95 flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-sm">
                 refresh
               </span>
-              Reload CSV Data
+              Reload Student Data
             </button>
           </div>
         </section>
@@ -197,8 +197,8 @@ export default function SettingsPage() {
               ["Application", "Academic Sentinel v1.0"],
               ["Framework", "Next.js (App Router)"],
               ["Recognition", "face-api.js"],
-              ["Data Source", "CSV (Offline)"],
-              ["Storage", "In-Memory Session"],
+              ["Data Source", "Supabase + Local Fallback"],
+              ["Storage", "Supabase Primary"],
             ].map(([label, value]) => (
               <div
                 key={label}

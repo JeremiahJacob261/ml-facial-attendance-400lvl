@@ -1,8 +1,46 @@
 import type { AttendanceRecord, SessionInfo } from "@/types";
+import {
+  getStoredRecords,
+  loadAttendanceRecords,
+  loadSessions,
+  upsertAttendanceRecord,
+  upsertAttendanceSession,
+} from "@/services/localData";
 
 // In-memory attendance store keyed by session ID
 const attendanceStore = new Map<string, AttendanceRecord[]>();
 let currentSession: SessionInfo | null = null;
+
+function rebuildAttendanceStore(records: AttendanceRecord[]): void {
+  attendanceStore.clear();
+  records.forEach((record) => {
+    if (!record.sessionId) return;
+    const recordsForSession = attendanceStore.get(record.sessionId) || [];
+    recordsForSession.push(record);
+    attendanceStore.set(record.sessionId, recordsForSession);
+  });
+}
+
+/**
+ * Hydrate sessions and records from Supabase, falling back to local cache.
+ */
+export async function hydrateAttendance(): Promise<{
+  records: AttendanceRecord[];
+  session: SessionInfo | null;
+}> {
+  const [records, sessions] = await Promise.all([
+    loadAttendanceRecords(),
+    loadSessions(),
+  ]);
+  rebuildAttendanceStore(records);
+  currentSession =
+    sessions.find((session) => session.isActive) || currentSession || null;
+
+  return {
+    records,
+    session: currentSession,
+  };
+}
 
 /**
  * Create and start a new attendance session.
@@ -17,6 +55,9 @@ export function startSession(course: string, venue: string): SessionInfo {
   };
   currentSession = session;
   attendanceStore.set(session.id, []);
+  upsertAttendanceSession(session).catch((err) => {
+    console.warn("Session sync failed", err);
+  });
   return session;
 }
 
@@ -33,6 +74,10 @@ export function getCurrentSession(): SessionInfo | null {
 export function endSession(): void {
   if (currentSession) {
     currentSession.isActive = false;
+    currentSession.endTime = new Date().toISOString();
+    upsertAttendanceSession(currentSession).catch((err) => {
+      console.warn("Session sync failed", err);
+    });
   }
 }
 
@@ -73,6 +118,7 @@ export function recordAttendance(
 
   const record: AttendanceRecord = {
     id: `att-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    sessionId,
     studentName,
     matricNumber,
     timestamp: new Date().toISOString(),
@@ -85,6 +131,9 @@ export function recordAttendance(
 
   records.push(record);
   attendanceStore.set(sessionId, records);
+  upsertAttendanceRecord(record).catch((err) => {
+    console.warn("Attendance record sync failed", err);
+  });
 
   return {
     success: true,
@@ -108,6 +157,12 @@ export function getAllRecords(): AttendanceRecord[] {
   const allRecords: AttendanceRecord[] = [];
   attendanceStore.forEach((records) => {
     allRecords.push(...records);
+  });
+  const localRecords = getStoredRecords();
+  localRecords.forEach((record) => {
+    if (!allRecords.some((item) => item.id === record.id)) {
+      allRecords.push(record);
+    }
   });
   // Sort by timestamp descending
   return allRecords.sort(

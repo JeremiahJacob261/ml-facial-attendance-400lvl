@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import Toast from "@/components/Toast";
 import { useAppState } from "@/hooks/useAppState";
-import { getCourses, getHalls } from "@/services/localData";
+import { loadCourses, loadHalls } from "@/services/localData";
 import "@/types/face-api.d.ts";
 
 export default function AttendancePage() {
@@ -68,8 +68,15 @@ export default function AttendancePage() {
   }, [showToast]);
 
   useEffect(() => {
-    setDefaultCourse(getCourses()[0]?.title || "");
-    setDefaultVenue(getHalls()[0]?.name || "");
+    const loadDefaults = async () => {
+      const [availableCourses, availableHalls] = await Promise.all([
+        loadCourses(),
+        loadHalls(),
+      ]);
+      setDefaultCourse(availableCourses[0]?.title || "");
+      setDefaultVenue(availableHalls[0]?.name || "");
+    };
+    void loadDefaults();
   }, []);
 
   // Start camera

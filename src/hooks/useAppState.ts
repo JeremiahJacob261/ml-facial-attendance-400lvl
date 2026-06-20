@@ -12,7 +12,12 @@ import {
   getSessionRecords,
   getAllRecords,
   getPresentCount,
+  hydrateAttendance,
 } from "@/services/attendance";
+import {
+  flushPendingOperations,
+  setupPendingSyncListener,
+} from "@/services/localData";
 
 export interface AppState {
   // Data
@@ -42,7 +47,7 @@ export interface AppState {
     course: string,
     venue: string
   ) => RecognitionResult;
-  refreshRecords: () => void;
+  refreshRecords: () => Promise<void>;
   showToast: (message: string, type: "success" | "error" | "info") => void;
   dismissToast: () => void;
 }
@@ -107,7 +112,14 @@ export function useAppState(): AppState {
     showToast("Session ended", "info");
   }, [showToast]);
 
-  const refreshRecords = useCallback(() => {
+  const refreshRecords = useCallback(async () => {
+    try {
+      await flushPendingOperations();
+      const hydrated = await hydrateAttendance();
+      setSession(hydrated.session);
+    } catch (err) {
+      console.warn("Attendance hydration failed, using local records", err);
+    }
     setSessionRecords(getSessionRecords());
     setAllRecords(getAllRecords());
     setPresentCount(getPresentCount());
@@ -140,7 +152,9 @@ export function useAppState(): AppState {
           showToast(message, "info");
         }
 
-        refreshRecords();
+        refreshRecords().catch((err) => {
+          console.warn("Record refresh failed", err);
+        });
       } else {
         showToast("Face Not Recognized", "error");
       }
@@ -152,8 +166,10 @@ export function useAppState(): AppState {
 
   // Load data on mount
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    void loadData();
+    void refreshRecords();
+    setupPendingSyncListener();
+  }, [loadData, refreshRecords]);
 
   return {
     students,
