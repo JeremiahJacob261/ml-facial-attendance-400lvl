@@ -1,8 +1,22 @@
 export interface Student {
+  id?: string;
   name: string;
   matric: string;
-  embedding: number[];
+  embedding?: number[];
   photo_url?: string;
+}
+
+export interface Course {
+  id: string;
+  code: string;
+  title: string;
+}
+
+export interface Hall {
+  id: string;
+  name: string;
+  capacity?: number;
+  location?: string;
 }
 
 export interface AttendanceRecord {

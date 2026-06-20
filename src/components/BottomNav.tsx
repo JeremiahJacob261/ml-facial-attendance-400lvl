@@ -7,6 +7,7 @@ const navItems = [
   { href: "/dashboard", icon: "dashboard", label: "Dashboard" },
   { href: "/attendance", icon: "center_focus_weak", label: "Capture" },
   { href: "/records", icon: "history_edu", label: "Records" },
+  { href: "/admin", icon: "admin_panel_settings", label: "Admin" },
   { href: "/settings", icon: "settings", label: "Settings" },
 ];
 
@@ -25,8 +26,8 @@ export default function BottomNav() {
             href={item.href}
             className={
               isActive
-                ? "flex flex-col items-center justify-center bg-primary-container text-white rounded-2xl px-5 py-2 active:translate-y-0.5 transition-transform"
-                : "flex flex-col items-center justify-center text-on-surface-variant px-5 py-2 hover:text-primary active:translate-y-0.5 transition-transform"
+                ? "flex flex-col items-center justify-center bg-primary-container text-white rounded-2xl px-3 sm:px-5 py-2 active:translate-y-0.5 transition-transform"
+                : "flex flex-col items-center justify-center text-on-surface-variant px-3 sm:px-5 py-2 hover:text-primary active:translate-y-0.5 transition-transform"
             }
           >
             <span

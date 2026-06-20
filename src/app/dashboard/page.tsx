@@ -6,20 +6,8 @@ import TopHeader from "@/components/TopHeader";
 import BottomNav from "@/components/BottomNav";
 import Toast from "@/components/Toast";
 import { useAppState } from "@/hooks/useAppState";
-
-const COURSES = [
-  "Advanced Systems Architecture",
-  "Database Management Systems",
-  "Machine Learning Fundamentals",
-  "Network Security",
-];
-
-const VENUES = [
-  "Lecture Hall 4B",
-  "Computer Lab 2",
-  "Auditorium A",
-  "Seminar Room 102",
-];
+import { getCourses, getHalls } from "@/services/localData";
+import type { Course, Hall } from "@/types";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -35,13 +23,21 @@ export default function DashboardPage() {
     refreshRecords,
   } = useAppState();
 
-  const [selectedCourse, setSelectedCourse] = useState(COURSES[0]);
-  const [selectedVenue, setSelectedVenue] = useState(VENUES[0]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [halls, setHalls] = useState<Hall[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState("");
+  const [selectedVenue, setSelectedVenue] = useState("");
   const [dateStr, setDateStr] = useState("");
   const [sessionLabel, setSessionLabel] = useState("");
 
   useEffect(() => {
     refreshRecords();
+    const availableCourses = getCourses();
+    const availableHalls = getHalls();
+    setCourses(availableCourses);
+    setHalls(availableHalls);
+    setSelectedCourse((current) => current || availableCourses[0]?.title || "");
+    setSelectedVenue((current) => current || availableHalls[0]?.name || "");
     // Client-only date formatting to avoid hydration mismatch
     const now = new Date();
     setDateStr(now.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
@@ -55,6 +51,9 @@ export default function DashboardPage() {
     totalEnrolled > 0 ? Math.round((present / totalEnrolled) * 100) : 0;
 
   const handleStartSession = () => {
+    if (!selectedCourse || !selectedVenue) {
+      return;
+    }
     startNewSession(selectedCourse, selectedVenue);
     router.push("/attendance");
   };
@@ -91,9 +90,12 @@ export default function DashboardPage() {
                           className="appearance-none w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-2.5 pr-10 text-sm font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
                           value={selectedCourse}
                           onChange={(e) => setSelectedCourse(e.target.value)}
+                          disabled={courses.length === 0}
                         >
-                          {COURSES.map((c) => (
-                            <option key={c}>{c}</option>
+                          {courses.map((course) => (
+                            <option key={course.id} value={course.title}>
+                              {course.title}
+                            </option>
                           ))}
                         </select>
                         <span className="material-symbols-outlined absolute right-3 pointer-events-none text-on-surface-variant group-focus-within:text-primary transition-colors">
@@ -110,9 +112,12 @@ export default function DashboardPage() {
                           className="appearance-none w-full bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 py-2.5 pr-10 text-sm font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
                           value={selectedVenue}
                           onChange={(e) => setSelectedVenue(e.target.value)}
+                          disabled={halls.length === 0}
                         >
-                          {VENUES.map((v) => (
-                            <option key={v}>{v}</option>
+                          {halls.map((hall) => (
+                            <option key={hall.id} value={hall.name}>
+                              {hall.name}
+                            </option>
                           ))}
                         </select>
                         <span className="material-symbols-outlined absolute right-3 pointer-events-none text-on-surface-variant group-focus-within:text-primary transition-colors">
@@ -152,6 +157,7 @@ export default function DashboardPage() {
               </button>
               <button
                 onClick={handleStartSession}
+                disabled={!selectedCourse || !selectedVenue}
                 className="px-8 py-3 rounded-2xl bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center gap-2"
               >
                 <span
@@ -244,6 +250,11 @@ export default function DashboardPage() {
               <p className="text-base font-bold text-on-surface leading-tight">
                 {session?.course || selectedCourse}
               </p>
+              {(!selectedCourse || !selectedVenue) && (
+                <p className="text-xs text-error mt-3 font-medium">
+                  Add at least one course and hall from Admin to start a session.
+                </p>
+              )}
               <div className="mt-4 flex items-center gap-2 text-on-surface-variant">
                 <span className="material-symbols-outlined text-sm">
                   schedule

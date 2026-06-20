@@ -1,6 +1,7 @@
 import type { Student } from "@/types";
 import { parseCSV, parseEmbedding } from "./parser";
 import { validateStudent } from "./validator";
+import { getStoredStudents, seedStudents } from "@/services/localData";
 
 // Module-level cache for parsed students
 let cachedStudents: Student[] | null = null;
@@ -15,6 +16,12 @@ export async function getStudents(): Promise<Student[]> {
   if (loadError) throw new Error(loadError);
 
   try {
+    const storedStudents = getStoredStudents();
+    if (storedStudents) {
+      cachedStudents = storedStudents;
+      return storedStudents;
+    }
+
     const response = await fetch("/data/students.csv");
     if (!response.ok) {
       throw new Error(`Failed to load students.csv: ${response.statusText}`);
@@ -78,6 +85,7 @@ export async function getStudents(): Promise<Student[]> {
       ).trim();
 
       students.push({
+        id: (row["id"] || `student-${matric}`).trim(),
         name,
         matric,
         embedding: embedding!,
@@ -85,9 +93,9 @@ export async function getStudents(): Promise<Student[]> {
       });
     }
 
-    cachedStudents = students;
+    cachedStudents = seedStudents(students);
     console.log(`Loaded ${students.length} students from CSV`);
-    return students;
+    return cachedStudents;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error loading CSV";
     loadError = message;

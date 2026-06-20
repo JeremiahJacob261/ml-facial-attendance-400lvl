@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import Toast from "@/components/Toast";
 import { useAppState } from "@/hooks/useAppState";
+import { getCourses, getHalls } from "@/services/localData";
 import "@/types/face-api.d.ts";
 
 export default function AttendancePage() {
@@ -29,6 +30,8 @@ export default function AttendancePage() {
   const [matchedName, setMatchedName] = useState("");
   const [matchedMatric, setMatchedMatric] = useState("");
   const [confidence, setConfidence] = useState(0);
+  const [defaultCourse, setDefaultCourse] = useState("");
+  const [defaultVenue, setDefaultVenue] = useState("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -63,6 +66,11 @@ export default function AttendancePage() {
       return () => clearInterval(iv);
     }
   }, [showToast]);
+
+  useEffect(() => {
+    setDefaultCourse(getCourses()[0]?.title || "");
+    setDefaultVenue(getHalls()[0]?.name || "");
+  }, []);
 
   // Start camera
   const startCamera = useCallback(async () => {
@@ -140,8 +148,14 @@ export default function AttendancePage() {
             consecutiveDetections = 0;
 
             // Auto-capture and recognize
-            const course = session?.course || "Advanced Systems Architecture";
-            const venue = session?.venue || "Lecture Hall 4B";
+            const course = session?.course || defaultCourse;
+            const venue = session?.venue || defaultVenue;
+
+            if (!course || !venue) {
+              showToast("Add a course and hall from Admin before capturing.", "error");
+              setIsProcessing(false);
+              return;
+            }
 
             // Ensure session exists
             if (!session?.isActive) {
@@ -209,6 +223,9 @@ export default function AttendancePage() {
     recognizeAndRecord,
     startNewSession,
     router,
+    defaultCourse,
+    defaultVenue,
+    showToast,
   ]);
 
   const handleManualCapture = async () => {
@@ -230,8 +247,14 @@ export default function AttendancePage() {
         return;
       }
 
-      const course = session?.course || "Advanced Systems Architecture";
-      const venue = session?.venue || "Lecture Hall 4B";
+      const course = session?.course || defaultCourse;
+      const venue = session?.venue || defaultVenue;
+
+      if (!course || !venue) {
+        showToast("Add a course and hall from Admin before capturing.", "error");
+        setIsProcessing(false);
+        return;
+      }
 
       if (!session?.isActive) {
         startNewSession(course, venue);
@@ -338,10 +361,10 @@ export default function AttendancePage() {
           <div className="glass-overlay rounded-2xl p-4 flex items-center justify-between border border-white/10">
             <div className="flex flex-col">
               <span className="text-white font-inter font-bold text-lg">
-                {session?.course || "Computer Science 101"}
+                {session?.course || defaultCourse || "No course configured"}
               </span>
               <span className="text-white/70 text-[12px] font-medium tracking-wide">
-                {session?.venue || "SECTION B"} • ROOM 402
+                {session?.venue || defaultVenue || "No hall configured"}
               </span>
             </div>
             <div className="bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">
@@ -410,7 +433,7 @@ export default function AttendancePage() {
         <div className="absolute bottom-32 left-0 w-full z-20 flex justify-center px-6">
           <button
             onClick={handleManualCapture}
-            disabled={isProcessing || isModelLoading}
+            disabled={isProcessing || isModelLoading || !defaultCourse || !defaultVenue}
             className="group flex flex-col items-center gap-3 disabled:opacity-50"
           >
             <div className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1 transition-transform active:scale-90">

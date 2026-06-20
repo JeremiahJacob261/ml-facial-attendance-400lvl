@@ -67,7 +67,9 @@ export function validateDataset(students: Student[]): ValidationResult {
   }
 
   // Check embedding length consistency
-  const embeddingLengths = new Set(students.map((s) => s.embedding.length));
+  const embeddingLengths = new Set(
+    students.filter((s) => s.embedding?.length).map((s) => s.embedding!.length)
+  );
   if (embeddingLengths.size > 1) {
     errors.push(
       `Inconsistent embedding lengths found: ${Array.from(embeddingLengths).join(", ")}`
